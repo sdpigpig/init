@@ -6,8 +6,8 @@
 
 # 確保腳本以 root 權限執行
 if [ "$EUID" -ne 0 ]; then
-  echo "請使用 root 權限執行此腳本 (sudo bash init.sh)"
-  exit 1
+    echo "請使用 root 權限執行此腳本 (sudo bash init.sh)"
+    exit 1
 fi
 
 # 檢查是否已安裝 gum，若無則自動安裝 (Bootstrap)
@@ -131,8 +131,6 @@ fn_install_base() {
     fi
 
     echo ""
-    # [自動執行階段] 安裝軟體與設定
-    # 修正: 加上 rsyslog 解決 Debian 12 缺少 /var/log/auth.log 導致 fail2ban 無法啟動的問題
     gum spin --spinner dot --title "正在更新 apt 索引..." -- \
         bash -c "export DEBIAN_FRONTEND=noninteractive && apt-get update -y > /dev/null 2>&1"
     print_success "apt 索引更新完成"
@@ -316,7 +314,7 @@ fn_optimize_sysctl() {
     fi
 
     echo ""
-    # 建立一個暫存標記來追蹤做了什麼
+    # 建立暫存標記 (不加引號以便在母 Shell 解析)
     DO_BBR=0
     DO_IPV6=0
     DO_FD=0
@@ -326,21 +324,22 @@ fn_optimize_sysctl() {
     if echo "$OPTS" | grep -q "nofile"; then DO_FD=1; fi
 
     gum spin --spinner dot --title "正在套用內核與系統配置..." -- bash -c "
-        # 1. BBR
-        if [ \$DO_BBR -eq 1 ]; then
+        # 1. BBR (修復: 強制載入模組並寫入設定)
+        if [ $DO_BBR -eq 1 ]; then
+            modprobe tcp_bbr 2>/dev/null
             grep -q 'net.core.default_qdisc=fq' /etc/sysctl.conf || echo 'net.core.default_qdisc=fq' >> /etc/sysctl.conf
             grep -q 'net.ipv4.tcp_congestion_control=bbr' /etc/sysctl.conf || echo 'net.ipv4.tcp_congestion_control=bbr' >> /etc/sysctl.conf
         fi
         
         # 2. IPv6
-        if [ \$DO_IPV6 -eq 1 ]; then
+        if [ $DO_IPV6 -eq 1 ]; then
             grep -q 'net.ipv6.conf.all.disable_ipv6 = 1' /etc/sysctl.conf || echo 'net.ipv6.conf.all.disable_ipv6 = 1' >> /etc/sysctl.conf
             grep -q 'net.ipv6.conf.default.disable_ipv6 = 1' /etc/sysctl.conf || echo 'net.ipv6.conf.default.disable_ipv6 = 1' >> /etc/sysctl.conf
             grep -q 'net.ipv6.conf.lo.disable_ipv6 = 1' /etc/sysctl.conf || echo 'net.ipv6.conf.lo.disable_ipv6 = 1' >> /etc/sysctl.conf
         fi
         
         # 3. 用戶層級句柄限制 (Debian 12 系統層級 fs.file-max 預設已極大，無需調整)
-        if [ \$DO_FD -eq 1 ]; then
+        if [ $DO_FD -eq 1 ]; then
             # 只調整用戶層級 nofile，這才是實際影響應用程式的限制
             grep -q '^\* soft nofile' /etc/security/limits.conf || echo '* soft nofile 65535' >> /etc/security/limits.conf
             grep -q '^\* hard nofile' /etc/security/limits.conf || echo '* hard nofile 65535' >> /etc/security/limits.conf
@@ -474,16 +473,21 @@ fn_setup_ufw() {
         gum spin --spinner dot --title "正在安裝 UFW 防火牆..." -- apt-get install -y ufw
     fi
 
-    # 進入時先列出當前防火牆狀態
-    echo "【當前防火牆狀態】"
-    echo "──────────────────────────────────────"
-    if ufw status 2>/dev/null | grep -qw active; then
-        ufw status numbered
-    else
-        gum style --foreground "$COLOR_WARN" "UFW 尚未啟用 (首次設定時將自動啟用)"
-    fi
-    echo "──────────────────────────────────────"
-    echo ""
+    # 定義顯示狀態的函數，方便多處呼叫
+    show_ufw_status() {
+        gum style --foreground "$COLOR_PRIMARY" --bold "【當前防火牆狀態清單】"
+        echo "──────────────────────────────────────"
+        if LC_ALL=C ufw status 2>/dev/null | grep -qw active; then
+            ufw status numbered
+        else
+            gum style --foreground "$COLOR_WARN" "UFW 尚未啟用 (目前處於全放行狀態，首次新增規則時將自動啟用並切換為預設拒絕)"
+        fi
+        echo "──────────────────────────────────────"
+        echo ""
+    }
+
+    # 進入主選單時先印出一次清單
+    show_ufw_status
 
     UFW_ACTION=$(gum choose "1. ➕ 新增放行規則 (Port)" "2. ➖ 刪除現有規則" "3. 返回主選單")
     if [ $? -ne 0 ]; then
@@ -491,6 +495,10 @@ fn_setup_ufw() {
     fi
 
     if [[ "$UFW_ACTION" == "1"* ]]; then
+        # 點進新增規則後，清空畫面並再次印出清單 (避免被 gum choose 擠掉)
+        print_header "➕ 新增放行規則 (Port)"
+        show_ufw_status
+
         echo "請輸入需要開放的 Ports (例如: 80,443,5522)。如果留空按 Enter，預設將放行 22："
         EXTRA_PORTS=$(gum input --placeholder "以逗號分隔，留空則開 22...")
         
@@ -513,7 +521,7 @@ fn_setup_ufw() {
         export EXTRA_PORTS
         gum spin --spinner dot --title "正在設定防火牆規則..." -- bash -c '
             # 如果是初次設定 (尚未 enable)，先做基礎配置
-            if ! ufw status | grep -qw active; then
+            if ! LC_ALL=C ufw status | grep -qw active; then
                 ufw --force reset > /dev/null 2>&1
                 ufw default deny incoming > /dev/null 2>&1
                 ufw default allow outgoing > /dev/null 2>&1
@@ -536,7 +544,7 @@ fn_setup_ufw() {
             fi
         '
     elif [[ "$UFW_ACTION" == "2"* ]]; then
-        if ! ufw status | grep -qw active; then
+        if ! LC_ALL=C ufw status | grep -qw active; then
             print_error "UFW 尚未啟用，無規則可刪除。"
             pause_to_return
             return
@@ -550,6 +558,7 @@ fn_setup_ufw() {
             return
         fi
         
+        print_header "➖ 刪除現有規則"
         echo "請使用 [空白鍵] 勾選要刪除的規則，全部勾選完後按 [Enter] 確認："
         SELECTED_RULES=$(echo "$RULE_LINES" | gum choose --no-limit --height 15)
         
@@ -576,7 +585,7 @@ fn_setup_ufw() {
     # 輸出驗證報告
     # ----------------------------------------
     echo ""
-    gum style --foreground "$COLOR_PRIMARY" --bold "📊 UFW 防火牆當前狀態報告："
+    gum style --foreground "$COLOR_PRIMARY" --bold "📊 UFW 防火牆操作後狀態："
     echo "--------------------------------------------------"
     ufw status verbose
     echo "--------------------------------------------------"
@@ -857,7 +866,7 @@ fn_setup_ssh() {
     if [ "$CURRENT_PORT" != "$NEW_PORT" ]; then
         echo ""
         # 自動將新 SSH 端口加入防火牆 (防止把自己鎖在門外)
-        if command -v ufw &> /dev/null && ufw status 2>/dev/null | grep -qw active; then
+        if command -v ufw &> /dev/null && LC_ALL=C ufw status 2>/dev/null | grep -qw active; then
             ufw allow "${ACTUAL_PORT}/tcp" > /dev/null 2>&1
             print_success "已自動將 Port ${ACTUAL_PORT}/tcp 加入 UFW 防火牆放行規則。"
         else
@@ -873,7 +882,7 @@ fn_setup_ssh() {
 fn_run_bench() {
     print_header "📊 網路與效能測試 Bench.sh"
     
-    gum confirm "即稍微執行秋水逸冰的 bench.sh 腳本，這會花費幾分鐘進行硬體與網路測速。是否繼續？"
+    gum confirm "即將執行秋水逸冰的 bench.sh 腳本，這會花費幾分鐘進行硬體與網路測速。是否繼續？"
     if [ $? -ne 0 ]; then
         print_warn "已取消操作，返回主選單。"
         pause_to_return

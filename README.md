@@ -19,7 +19,7 @@
 DD 完畢、SSH 登入 root 後，執行這一行：
 
 ```bash
-apt update && apt install -y curl && mkdir -p /opt/init-debian && curl -fsSL https://github.com/你的帳號/init-debian/archive/main.tar.gz | tar xz --strip-components=1 -C /opt/init-debian && cd /opt/init-debian && bash init.sh
+apt update && apt install -y curl && mkdir -p /opt/init && curl -fsSL https://github.com/sdpigpig/init/archive/refs/heads/main.tar.gz | tar xz --strip-components=1 -C /opt/init && cd /opt/init && bash init.sh
 ```
 
 > **提示**：腳本解壓到 `/opt/init-debian`，不會弄亂 `~` 目錄。

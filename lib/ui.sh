@@ -114,7 +114,33 @@ prompt_input() {
   fi
 }
 
-# 密碼輸入（無預設值，強制二次確認）
+# 密碼輸入（逐字元 ● 遮罩，支援 Backspace，強制二次確認）
+_read_masked() {
+  local __result=""
+  local __char
+
+  while IFS= read -rsn1 __char; do
+    # Enter → 結束輸入
+    if [ -z "$__char" ]; then
+      break
+    fi
+
+    # Backspace / Delete
+    if [[ "$__char" == $'\x7f' || "$__char" == $'\b' ]]; then
+      if [ -n "$__result" ]; then
+        __result="${__result%?}"
+        printf '\b \b'
+      fi
+    else
+      __result+="$__char"
+      printf '●'
+    fi
+  done
+
+  echo ""
+  eval "$1='$__result'"
+}
+
 prompt_password() {
   local __var="$1"
   local __prompt="$2"
@@ -122,8 +148,7 @@ prompt_password() {
 
   while true; do
     printf "${CYAN}  [?]${NC} %s: " "$__prompt"
-    read -s __input
-    echo ""
+    _read_masked __input
 
     if [ -z "$__input" ]; then
       printf "${YELLOW}      ⚠ 密碼不能為空，請重新輸入${NC}\n"
@@ -136,8 +161,7 @@ prompt_password() {
     fi
 
     printf "${CYAN}  [?]${NC} 請再次確認密碼: "
-    read -s __confirm
-    echo ""
+    _read_masked __confirm
 
     if [ "$__input" = "$__confirm" ]; then
       eval "$__var='$__input'"

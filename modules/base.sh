@@ -30,8 +30,8 @@ module_base_run() {
   sed -i "s/127.0.1.1.*/127.0.1.1 $CFG_HOSTNAME/g" /etc/hosts
   step_ok "主機名已設定" "新主機名: $CFG_HOSTNAME"
 
-  # ── Step 3: 官方源 + 升級 ──
-  step_start "切換官方源並升級系統 (這可能需要幾分鐘)"
+  # ── Step 3: 官方源 + 更新套件清單 ──
+  step_start "切換官方源並更新套件清單"
   mv /etc/apt/sources.list /etc/apt/sources.list.bak 2>/dev/null
 
   cat > /etc/apt/sources.list <<SRCEOF
@@ -45,11 +45,11 @@ deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free
 deb-src http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware
 SRCEOF
 
-  apt update && apt upgrade -y && apt autoremove -y && apt clean
+  apt update && apt autoremove -y && apt clean
 
   if [ $? -eq 0 ]; then
-    step_ok "系統源切換與升級完成" "核心版本: $(uname -r)"
+    step_ok "官方源切換完成" "核心版本: $(uname -r)"
   else
-    step_fail "系統升級過程中出現問題" "請手動檢查 apt 日誌"
+    step_fail "套件清單更新出現問題" "請手動檢查 apt 日誌"
   fi
 }

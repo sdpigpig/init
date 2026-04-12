@@ -6,7 +6,7 @@
 
 | Phase | 內容 |
 |-------|------|
-| A | 🔧 Root 密碼、主機名、Cloudflare DNS、官方源升級 |
+| A | 🔧 Root 密碼、主機名、官方源更新 |
 | B | ⚡ BBR 網路優化、SWAP、系統調優、Journal 日誌限制 |
 | C | 📦 安裝基礎工具包 |
 | D | 🔒 SSHD 改 Port → UFW 防火墻 → Fail2ban |
@@ -19,7 +19,7 @@
 DD 完畢、SSH 登入 root 後，執行這一行：
 
 ```bash
-apt update && apt install -y curl && mkdir -p /opt/init && curl -fsSL https://github.com/sdpigpig/init/archive/refs/heads/main.tar.gz | tar xz --strip-components=1 -C /opt/init && cd /opt/init && bash init.sh
+apt update && apt install -y curl && mkdir -p /opt/init && curl -fsSL https://github.com/sdpigpig/init/archive/refs/heads/main.tar.gz | tar xz --strip-components=1 -C /opt/init && bash /opt/init/init.sh
 ```
 
 > **提示**：腳本解壓到 `/opt/init-debian`，不會弄亂 `~` 目錄。
@@ -28,6 +28,7 @@ apt update && apt install -y curl && mkdir -p /opt/init && curl -fsSL https://gi
 
 - 選 `0` → 全部執行（先收集所有設定，確認後一氣呵成）
 - 選 `A`~`G` → 單獨執行某個模組
+- 選 `N` → Cloudflare DNS 綁定（可選，GCP 等嚴格環境慎用）
 - 選 `I` → IPv6 開關（可選）
 - 選 `Q` → 退出
 
@@ -47,7 +48,8 @@ init-debian/
     ├── apps.sh          # Phase E
     ├── docker.sh        # Phase F
     ├── user.sh          # Phase G
-    └── ipv6.sh          # 附錄
+    ├── ipv6.sh          # 附錄：IPv6 開關
+    └── dns.sh           # 附錄：Cloudflare DNS 綁定
 ```
 
 ## 密碼安全

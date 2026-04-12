@@ -29,7 +29,7 @@ done
 
 show_menu() {
   print_header "🚀 Init Debian 12"
-  printf "  ${BOLD}A${NC} ) 🔧 基礎系統     ${DIM}密碼 / 主機名 / 升級${NC}\n"
+  printf "  ${BOLD}A${NC} ) 🔧 基礎系統     ${DIM}密碼 / 主機名 / 官方源${NC}\n"
   printf "  ${BOLD}B${NC} ) ⚡ 核心優化     ${DIM}BBR / SWAP / 調優 / Journal${NC}\n"
   printf "  ${BOLD}C${NC} ) 📦 安裝套件\n"
   printf "  ${BOLD}D${NC} ) 🔒 安全加固     ${DIM}SSHD / UFW / Fail2ban${NC}\n"

@@ -29,7 +29,7 @@ done
 
 show_menu() {
   print_header "🚀 Init Debian 12"
-  printf "  ${BOLD}A${NC} ) 🔧 基礎系統     ${DIM}密碼 / 主機名 / DNS / 升級${NC}\n"
+  printf "  ${BOLD}A${NC} ) 🔧 基礎系統     ${DIM}密碼 / 主機名 / 升級${NC}\n"
   printf "  ${BOLD}B${NC} ) ⚡ 核心優化     ${DIM}BBR / SWAP / 調優 / Journal${NC}\n"
   printf "  ${BOLD}C${NC} ) 📦 安裝套件\n"
   printf "  ${BOLD}D${NC} ) 🔒 安全加固     ${DIM}SSHD / UFW / Fail2ban${NC}\n"
@@ -39,6 +39,7 @@ show_menu() {
   echo ""
   print_line
   printf "  ${BOLD}0${NC} ) 🚀 ${GREEN}全部執行 (A → G)${NC}\n"
+  printf "  ${BOLD}N${NC} ) 🌐 Cloudflare DNS ${DIM}可選 (GCP 等嚴格環境慎用)${NC}\n"
   printf "  ${BOLD}I${NC} ) 🌐 IPv6 開關     ${DIM}可選${NC}\n"
   printf "  ${BOLD}Q${NC} ) 退出\n"
   echo ""
@@ -120,6 +121,8 @@ run_single() {
       module_user_collect && module_user_run ;;
     ipv6)
       module_ipv6_menu ;;
+    dns)
+      module_dns_menu ;;
   esac
 }
 
@@ -141,6 +144,7 @@ while true; do
     [fF]) run_single docker ;;
     [gG]) run_single user ;;
     0)    run_all ;;
+    [nN]) run_single dns ;;
     [iI]) run_single ipv6 ;;
     [qQ]) printf "\n  ${DIM}Bye!${NC}\n"; exit 0 ;;
     *)    printf "${YELLOW}  無效選擇，請重新輸入${NC}\n" ;;

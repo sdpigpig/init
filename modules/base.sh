@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════
 # Phase A：基礎系統
-# 修改 Root 密碼 → 主機名 → DNS → 官方源升級
+# 修改 Root 密碼 → 主機名 → 官方源升級
 # ═══════════════════════════════════════════
 
 module_base_collect() {
@@ -30,30 +30,7 @@ module_base_run() {
   sed -i "s/127.0.1.1.*/127.0.1.1 $CFG_HOSTNAME/g" /etc/hosts
   step_ok "主機名已設定" "新主機名: $CFG_HOSTNAME"
 
-  # ── Step 3: DNS ──
-  step_start "綁定 Cloudflare DNS"
-  systemctl disable --now systemd-resolved 2>/dev/null
-  chattr -i /etc/resolv.conf 2>/dev/null
-
-  cat > /etc/resolv.conf <<DNSEOF
-nameserver 1.1.1.1
-nameserver 1.0.0.1
-nameserver 2606:4700:4700::1111
-nameserver 2606:4700:4700::1001
-DNSEOF
-  chattr +i /etc/resolv.conf
-
-  local dns_body
-  dns_body="$(grep nameserver /etc/resolv.conf)"
-  if ping -c 1 -W 3 1.1.1.1 >/dev/null 2>&1; then
-    dns_body+=$'\n'"連線測試: OK"
-    step_ok "DNS 設定完成" "$dns_body"
-  else
-    dns_body+=$'\n'"連線測試: FAIL (可能為網路問題，不影響後續)"
-    step_fail "DNS 設定可能有問題" "$dns_body"
-  fi
-
-  # ── Step 4: 官方源 + 升級 ──
+  # ── Step 3: 官方源 + 升級 ──
   step_start "切換官方源並升級系統 (這可能需要幾分鐘)"
   mv /etc/apt/sources.list /etc/apt/sources.list.bak 2>/dev/null
 

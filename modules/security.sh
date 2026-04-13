@@ -65,13 +65,14 @@ module_security_run() {
 enabled = true
 port = 22,$CFG_SSH_PORT
 filter = sshd
-logpath = /var/log/auth.log
+backend = systemd
 maxretry = 5
 findtime = 10m
 bantime = 1h
 F2BEOF
 
   systemctl restart fail2ban
+  sleep 2  # 等待 socket 就緒
 
   if systemctl is-active --quiet fail2ban; then
     local f2b_status
